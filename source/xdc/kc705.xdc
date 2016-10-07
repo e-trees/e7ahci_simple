@@ -1,0 +1,20 @@
+set_property PACKAGE_PIN U8 [get_ports {IBUF_DS_P[0]}]
+
+set_property PACKAGE_PIN AB8 [get_ports {GPIO_LED[0]}]
+set_property PACKAGE_PIN AA8 [get_ports {GPIO_LED[1]}]
+set_property PACKAGE_PIN AC9 [get_ports {GPIO_LED[2]}]
+set_property PACKAGE_PIN AB9 [get_ports {GPIO_LED[3]}]
+set_property PACKAGE_PIN AE26 [get_ports {GPIO_LED[4]}]
+set_property PACKAGE_PIN G19 [get_ports {GPIO_LED[5]}]
+set_property PACKAGE_PIN E18 [get_ports {GPIO_LED[6]}]
+set_property PACKAGE_PIN F16 [get_ports {GPIO_LED[7]}]
+
+set_property IOSTANDARD LVCMOS15 [get_ports {GPIO_LED[0]}]
+set_property IOSTANDARD LVCMOS15 [get_ports {GPIO_LED[1]}]
+set_property IOSTANDARD LVCMOS15 [get_ports {GPIO_LED[2]}]
+set_property IOSTANDARD LVCMOS15 [get_ports {GPIO_LED[3]}]
+set_property IOSTANDARD LVCMOS25 [get_ports {GPIO_LED[4]}]
+set_property IOSTANDARD LVCMOS25 [get_ports {GPIO_LED[5]}]
+set_property IOSTANDARD LVCMOS25 [get_ports {GPIO_LED[6]}]
+set_property IOSTANDARD LVCMOS25 [get_ports {GPIO_LED[7]}]
+
