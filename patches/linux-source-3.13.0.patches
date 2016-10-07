@@ -1,0 +1,254 @@
+diff -upr linux-source-3.13.0.orig/drivers/ata/ahci.c linux-source-3.13.0/drivers/ata/ahci.c
+--- linux-source-3.13.0.orig/drivers/ata/ahci.c	2015-04-11 05:14:27.000000000 +0900
++++ linux-source-3.13.0/drivers/ata/ahci.c	2015-05-15 13:39:39.265530653 +0900
+@@ -1248,12 +1248,21 @@ static int ahci_init_one(struct pci_dev
+ 	int n_ports, n_msis, i, rc;
+ 	int ahci_pci_bar = AHCI_PCI_BAR_STANDARD;
+ 
++	pr_info("<miyo> ahci_init_one: start\n");
++	pr_info("<miyo> ahci_init_one: pdev->vendor==%04x pdev->device=%04x\n", pdev->vendor, pdev->device);
++
+ 	VPRINTK("ENTER\n");
+ 
+ 	WARN_ON((int)ATA_MAX_QUEUE > AHCI_MAX_CMDS);
+ 
+ 	ata_print_version_once(&pdev->dev, DRV_VERSION);
+ 
++	// for my original AHCI
++	if (pdev->vendor == 0x10ee && pdev->device == 0x7022) {
++		dev_info(&pdev->dev, "FPGA AHCI controller\n");
++		ahci_pci_bar = 0;
++	}
++
+ 	/* The AHCI driver can only drive the SATA ports, the PATA driver
+ 	   can drive them all so if both drivers are selected make sure
+ 	   AHCI stays out of the way */
+diff -upr linux-source-3.13.0.orig/drivers/ata/libata-core.c linux-source-3.13.0/drivers/ata/libata-core.c
+--- linux-source-3.13.0.orig/drivers/ata/libata-core.c	2015-04-11 05:14:27.000000000 +0900
++++ linux-source-3.13.0/drivers/ata/libata-core.c	2015-05-25 13:56:04.634170191 +0900
+@@ -752,6 +752,7 @@ int ata_build_rw_tf(struct ata_taskfile
+ 	tf->flags |= tf_flags;
+ 
+ 	if (ata_ncq_enabled(dev) && likely(tag != ATA_TAG_INTERNAL)) {
++		//pr_info("<miyo> libata-core: yay, NCQ\n");
+ 		/* yay, NCQ */
+ 		if (!lba_48_ok(block, n_block))
+ 			return -ERANGE;
+@@ -844,6 +845,7 @@ int ata_build_rw_tf(struct ata_taskfile
+ 		tf->device |= head;
+ 	}
+ 
++	//pr_info("<miyo> libata-core: success\n");
+ 	return 0;
+ }
+ 
+@@ -1559,6 +1561,7 @@ unsigned ata_exec_internal_sg(struct ata
+ 	unsigned int err_mask;
+ 	int rc;
+ 
++	pr_info("<miyo> libata-core ata_exec_internal_sg\n");
+ 	spin_lock_irqsave(ap->lock, flags);
+ 
+ 	/* no internal command while frozen */
+@@ -1640,13 +1643,17 @@ unsigned ata_exec_internal_sg(struct ata
+ 	if (ap->ops->error_handler)
+ 		ata_eh_release(ap);
+ 
++	pr_info("<miyo> libata-core call wait_for_completion_timeout\n");
+ 	rc = wait_for_completion_timeout(&wait, msecs_to_jiffies(timeout));
++	pr_info("<miyo> libata-core ret wait_for_completion_timeout\n");
+ 
+-	if (ap->ops->error_handler)
++	if (ap->ops->error_handler){
+ 		ata_eh_acquire(ap);
++	}
+ 
+ 	ata_sff_flush_pio_task(ap);
+ 
++
+ 	if (!rc) {
+ 		spin_lock_irqsave(ap->lock, flags);
+ 
+@@ -1656,6 +1663,7 @@ unsigned ata_exec_internal_sg(struct ata
+ 		 * cleaned up by ->post_internal_cmd().
+ 		 */
+ 		if (qc->flags & ATA_QCFLAG_ACTIVE) {
++			pr_info("<miyo> libata-core ata_exec_internal_sg error:AC_ERR_TIMEOUT\n");
+ 			qc->err_mask |= AC_ERR_TIMEOUT;
+ 
+ 			if (ap->ops->error_handler)
+@@ -1675,16 +1683,22 @@ unsigned ata_exec_internal_sg(struct ata
+ 	if (ap->ops->post_internal_cmd)
+ 		ap->ops->post_internal_cmd(qc);
+ 
++	pr_info("<miyo> libata-core ata_exec_internal_sg %02x\n", qc->result_tf.command);
+ 	/* perform minimal error analysis */
+ 	if (qc->flags & ATA_QCFLAG_FAILED) {
+-		if (qc->result_tf.command & (ATA_ERR | ATA_DF))
++		if (qc->result_tf.command & (ATA_ERR | ATA_DF)){
++			pr_info("<miyo> libata-core ata_exec_internal_sg error:AC_ERR_DEV\n");
+ 			qc->err_mask |= AC_ERR_DEV;
++		}
+ 
+-		if (!qc->err_mask)
++		if (!qc->err_mask){
++			pr_info("<miyo> libata-core ata_exec_internal_sg error:AC_ERR_OTHER\n");
+ 			qc->err_mask |= AC_ERR_OTHER;
++		}
+ 
+-		if (qc->err_mask & ~AC_ERR_OTHER)
++		if (qc->err_mask & ~AC_ERR_OTHER){
+ 			qc->err_mask &= ~AC_ERR_OTHER;
++		}
+ 	}
+ 
+ 	/* finish up */
+@@ -1704,6 +1718,7 @@ unsigned ata_exec_internal_sg(struct ata
+ 	if ((err_mask & AC_ERR_TIMEOUT) && auto_timeout)
+ 		ata_internal_cmd_timed_out(dev, command);
+ 
++	pr_info("<miyo> libata-core ata_exec_internal_sg return\n");
+ 	return err_mask;
+ }
+ 
+@@ -1734,6 +1749,7 @@ unsigned ata_exec_internal(struct ata_de
+ 	struct scatterlist *psg = NULL, sg;
+ 	unsigned int n_elem = 0;
+ 
++	pr_info("<miyo> libata-core ata_exec_internal\n");
+ 	if (dma_dir != DMA_NONE) {
+ 		WARN_ON(!buf);
+ 		sg_init_one(&sg, buf, buflen);
+@@ -1911,10 +1927,13 @@ retry:
+ 	 */
+ 	tf.flags |= ATA_TFLAG_POLLING;
+ 
+-	if (ap->ops->read_id)
++	if (ap->ops->read_id){
++		pr_info("<miyo> libata-core ap->ops->read_id id=%d\n", id);
+ 		err_mask = ap->ops->read_id(dev, &tf, id);
+-	else
++	} else {
++		pr_info("<miyo> libata-core ata_do_dev_read_id id=%d\n", id);
+ 		err_mask = ata_do_dev_read_id(dev, &tf, id);
++	}
+ 
+ 	if (err_mask) {
+ 		if (err_mask & AC_ERR_NODEV_HINT) {
+@@ -2014,6 +2033,10 @@ retry:
+ 			goto retry;
+ 	}
+ 
++	pr_info("libata-core: <miyo> id[0..8]={%04x,%04x,%04x,%04x,%04x,%04x,%04x,%04x}\n", id[0], id[1], id[2], id[3], id[4], id[5], id[6], id[7]);
++	pr_info("libata-core: <miyo> ata_id_major_version=%d\n", ata_id_major_version(id));
++	pr_info("libata-core: <miyo> ata_id_has_lba=%d\n", ata_id_has_lba(id));
++
+ 	if ((flags & ATA_READID_POSTRESET) && class == ATA_DEV_ATA) {
+ 		/*
+ 		 * The exact sequence expected by certain pre-ATA4 drives is:
+@@ -3604,6 +3627,7 @@ int sata_link_resume(struct ata_link *li
+ 	 */
+ 	do {
+ 		scontrol = (scontrol & 0x0f0) | 0x300;
++		pr_info("libata-core: <miyo> sata_scr_write SCR_CONTROL=%08x value=%08x\n", SCR_CONTROL, scontrol);
+ 		if ((rc = sata_scr_write(link, SCR_CONTROL, scontrol)))
+ 			return rc;
+ 		/*
+@@ -3616,6 +3640,7 @@ int sata_link_resume(struct ata_link *li
+ 		/* is SControl restored correctly? */
+ 		if ((rc = sata_scr_read(link, SCR_CONTROL, &scontrol)))
+ 			return rc;
++		pr_info("libata-core: <miyo> sata_scr_read SCR_CONTROL=%08x value=%08x\n", SCR_CONTROL, scontrol);
+ 	} while ((scontrol & 0xf0f) != 0x300 && --tries);
+ 
+ 	if ((scontrol & 0xf0f) != 0x300) {
+@@ -4593,10 +4618,13 @@ static unsigned int ata_dev_init_params(
+ {
+ 	struct ata_taskfile tf;
+ 	unsigned int err_mask;
++	pr_info("<miyo> libata-core ata_dev_init_params\n");
+ 
+ 	/* Number of sectors per track 1-255. Number of heads 1-16 */
+-	if (sectors < 1 || sectors > 255 || heads < 1 || heads > 16)
++	if (sectors < 1 || sectors > 255 || heads < 1 || heads > 16){
++		pr_info("<miyo> libata-core ata_dev_init_params: AC_ERR_INVALID sectors=%d head=%d\n", sectors, heads);
+ 		return AC_ERR_INVALID;
++	}
+ 
+ 	/* set up init dev params taskfile */
+ 	DPRINTK("init dev params \n");
+@@ -4612,9 +4640,11 @@ static unsigned int ata_dev_init_params(
+ 	/* A clean abort indicates an original or just out of spec drive
+ 	   and we should continue as we issue the setup based on the
+ 	   drive reported working geometry */
++	pr_info("<miyo> libata-core ata_dev_init_params(pre): err_mask=%d\n", err_mask);
+ 	if (err_mask == AC_ERR_DEV && (tf.feature & ATA_ABORTED))
+ 		err_mask = 0;
+ 
++	pr_info("<miyo> libata-core ata_dev_init_params: err_mask=%d\n", err_mask);
+ 	DPRINTK("EXIT, err_mask=%x\n", err_mask);
+ 	return err_mask;
+ }
+@@ -4909,6 +4939,7 @@ void __ata_qc_complete(struct ata_queued
+ 	 * from completing the command twice later, before the error handler
+ 	 * is called. (when rc != 0 and atapi request sense is needed)
+ 	 */
++//	pr_info("<miyo> libata-core ata_qc_issue: clear ATA_QCFLAG_ACTIVE\n");
+ 	qc->flags &= ~ATA_QCFLAG_ACTIVE;
+ 	ap->qc_active &= ~(1 << qc->tag);
+ 
+@@ -5105,6 +5136,7 @@ void ata_qc_issue(struct ata_queued_cmd
+ 	struct ata_link *link = qc->dev->link;
+ 	u8 prot = qc->tf.protocol;
+ 
++//	pr_info("<miyo> libata-core ata_qc_issue\n");
+ 	/* Make sure only one non-NCQ command is outstanding.  The
+ 	 * check is skipped for old EH because it reuses active qc to
+ 	 * request ATAPI sense.
+@@ -5124,6 +5156,7 @@ void ata_qc_issue(struct ata_queued_cmd
+ 		link->active_tag = qc->tag;
+ 	}
+ 
++//	pr_info("<miyo> libata-core ata_qc_issue: set ATA_QCFLAG_ACTIVE\n");
+ 	qc->flags |= ATA_QCFLAG_ACTIVE;
+ 	ap->qc_active |= 1 << qc->tag;
+ 
+@@ -5153,11 +5186,16 @@ void ata_qc_issue(struct ata_queued_cmd
+ 	qc->err_mask |= ap->ops->qc_issue(qc);
+ 	if (unlikely(qc->err_mask))
+ 		goto err;
++
++//	pr_info("\t\t<miyo> libata-core ata_qc_issue done\n");
++//	pr_info("<miyo> libata-core ata_qc_issue: return\n");
+ 	return;
+ 
+ sys_err:
+ 	qc->err_mask |= AC_ERR_SYSTEM;
++	pr_info("<miyo> libata-core ata_qc_issue: sys_err\n");
+ err:
++	pr_info("<miyo> libata-core ata_qc_issue: err\n");
+ 	ata_qc_complete(qc);
+ }
+ 
+diff -upr linux-source-3.13.0.orig/drivers/ata/libata-pmp.c linux-source-3.13.0/drivers/ata/libata-pmp.c
+--- linux-source-3.13.0.orig/drivers/ata/libata-pmp.c	2015-04-11 05:14:27.000000000 +0900
++++ linux-source-3.13.0/drivers/ata/libata-pmp.c	2015-04-24 12:33:54.822721258 +0900
+@@ -56,6 +56,7 @@ static unsigned int sata_pmp_read(struct
+ 		return err_mask;
+ 
+ 	*r_val = tf.nsect | tf.lbal << 8 | tf.lbam << 16 | tf.lbah << 24;
++	pr_info("<miyo> libata-pmp sata_pmp_read reg=%08x val=%08x\n", reg, *r_val);
+ 	return 0;
+ }
+ 
+diff -upr linux-source-3.13.0.orig/drivers/ata/libata-scsi.c linux-source-3.13.0/drivers/ata/libata-scsi.c
+--- linux-source-3.13.0.orig/drivers/ata/libata-scsi.c	2015-04-11 05:14:27.000000000 +0900
++++ linux-source-3.13.0/drivers/ata/libata-scsi.c	2015-05-25 13:56:13.294169935 +0900
+@@ -1720,6 +1720,7 @@ static unsigned int ata_scsi_rw_xlat(str
+ 	qc->flags |= ATA_QCFLAG_IO;
+ 	qc->nbytes = n_block * scmd->device->sector_size;
+ 
++	//pr_info("<miyo> libata-scsi.c: call ata_build_rw_tf tag=%08x, block=%d, bytes=%d\n", qc->tag, n_block, qc->nbytes);
+ 	rc = ata_build_rw_tf(&qc->tf, qc->dev, block, n_block, tf_flags,
+ 			     qc->tag);
+ 	if (likely(rc == 0))
