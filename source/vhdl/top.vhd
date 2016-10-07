@@ -1,12 +1,5 @@
---Copyright 1986-2014 Xilinx, Inc. All Rights Reserved.
-----------------------------------------------------------------------------------
---Tool Version: Vivado v.2014.1 (lin64) Build 881834 Fri Apr  4 14:00:25 MDT 2014
---Date        : Fri May 15 12:13:48 2015
---Host        : compile-cent.e-trees.jp running 64-bit unknown
---Command     : generate_target design_1_wrapper.bd
---Design      : design_1_wrapper
---Purpose     : IP block netlist
-----------------------------------------------------------------------------------
+-- Copyright (C) 2016 e-trees.Japan, Inc. All Rights Reserved.
+
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.numeric_std.ALL;

@@ -1,3 +1,5 @@
+/** Copyright (C) 2016 e-trees.Japan, Inc. All Rights Reserved. **/
+
 package ahci_test;
 
 import java.util.EnumSet;

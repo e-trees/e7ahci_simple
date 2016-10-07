@@ -1,3 +1,5 @@
+-- Copyright (C) 2016 e-trees.Japan, Inc. All Rights Reserved.
+
 library IEEE;
 
 use ieee.std_logic_1164.all;
