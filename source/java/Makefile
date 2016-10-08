@@ -4,7 +4,7 @@ SYNTHESIJER_EXTRA_LIB_SRC ?= $(HOME)/synthesijer/synthesijer_extra-libs_20160511
 
 all:
 	java -cp $(SYNTHESIJER):$(SYNTHESIJER_EXTRA_LIB):. \
-		synthesijer.Main \
+		synthesijer.Main --chaining \
 		ahci_test/AHCI_Test.java \
 		ahci_test/AHCI_REGISTER.java \
 		ahci_test/AHCI_ID.java \
